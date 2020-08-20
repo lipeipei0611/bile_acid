@@ -1,0 +1,103 @@
+### Appendix
+library("xlsx")
+library("limma")
+appendix <- read.xlsx("BileAcid_Appendix.xlsx", sheetName = "Sheet1")
+head(appendix)
+colnames(appendix)
+summary(data.frame(paste(appendix$Diagnosis, appendix$Gender, sep="_")))
+
+factor <- appendix[, 1:6]
+BA <- t(appendix[, 7: 31])
+
+design2 <- model.matrix(~ Diagnosis + Age.at.sample.acquisition + Gender + Postmortem.interval, data= factor)
+fit2 <- lmFit(BA, design=design2,method="robust")
+fit2 <- eBayes(fit2)
+fit2$p.value
+fit2_table <- cbind(rownames(BA),toptable(fit2,coef=2,adjust.method="BH",sort="none",n=Inf))
+fit2_table$FC <- sign(fit2_table$logFC) * 10^(abs(fit2_table$logFC))
+write.table(fit2_table, "fit2_table_appendix.txt", quote=F, sep="\t", row.names=F)
+
+
+### Ileum
+library("xlsx")
+library("limma")
+ileum <- read.xlsx("BileAcid_ileum.xlsx", sheetName = "Sheet1")
+head(ileum)
+colnames(ileum)
+
+summary(data.frame(paste(ileum$Diagnosis, ileum$sex, sep="_")))
+
+factor <- ileum[, 1:5]
+BA <- t(ileum[, 6: 30])
+
+
+design2 <- model.matrix(~ Diagnosis + age + sex + postmortem.interval, data= factor)
+fit2 <- lmFit(BA, design=design2,method="robust")
+fit2 <- eBayes(fit2)
+fit2_table <- cbind(rownames(BA),toptable(fit2,coef=2,adjust.method="BH",sort="none",n=Inf))
+fit2_table$FC <- sign(fit2_table$logFC) * 10^(abs(fit2_table$logFC))
+
+write.table(fit2_table, "fit2_table_ileum.txt", quote=F, sep="\t", row.names=F)
+
+
+
+### mouse_CP
+library("xlsx")
+library("limma")
+mouseCP <- read.xlsx("BileAcid_mouseCP.xlsx", sheetName = "Sheet1")
+head(mouseCP)
+colnames(mouseCP)
+
+summary(data.frame(paste(mouseCP$Genotype, mouseCP$Sex, sep="_")))
+ 
+summary(data.frame(paste(mouseCP$Treatment, mouseCP$Sex, sep="_")))
+
+ 
+factor <- mouseCP[, 1:6]
+factor$Genotype <- factor(factor$Genotype, levels=c("wt", "tg"))
+factor$Treatment <- factor(factor$Treatment, levels=c("water", "dss"))
+
+BA <- t(cbind(mouseCP[, 7:36]))
+
+design1 <- model.matrix(~ Treatment + Genotype + Sex, data = factor)
+fit1 <- lmFit(BA, design=design1,method="robust")
+fit1 <- eBayes(fit1)
+fit1_table_Treatment <- cbind(rownames(BA),toptable(fit1,coef=2,adjust.method="BH",sort="none",n=Inf))
+fit1_table_Treatment$FC <- sign(fit1_table_Treatment$logFC) * 10^(abs(fit1_table_Treatment$logFC))
+
+
+
+fit1_table_Genotype <- cbind(rownames(BA),toptable(fit1,coef=3,adjust.method="BH",sort="none",n=Inf))
+fit1_table_Genotype$FC <- sign(fit1_table_Genotype$logFC) * 10^(abs(fit1_table_Genotype$logFC))
+
+
+write.table(fit1_table_Treatment, "fit1_table_Treatment_mouseCP.txt", quote=F, sep="\t", row.names=F)
+write.table(fit1_table_Genotype, "fit1_table_Genotype_mouseCP.txt", quote=F, sep="\t", row.names=F)
+
+
+
+design2 <- model.matrix(~ Genotype*Treatment + Sex, data = factor)
+
+
+fit2 <- lmFit(BA, design=design2,method="robust")
+
+Genotypetg_Treatmentdss <- c(1, 1, 1, 1, 1*1)
+Genotypetg_TreatmentWater <- c(1, 1, 0, 1, 1*0)
+Genotypewt_Treatmentdss <- c(1, 0, 1, 1, 0*1)
+Genotypewt_TreatmentWater <- c(1, 0, 0, 1, 0*0)
+
+#####
+contrast.matrix <- (Genotypetg_Treatmentdss - Genotypetg_TreatmentWater) - (Genotypewt_Treatmentdss - Genotypewt_TreatmentWater)
+
+fit2_Contrast <- contrasts.fit(fit2,contrast.matrix)
+fit2_Contrast <- eBayes(fit2_Contrast)
+
+
+fit2_table <- cbind(rownames(BA),toptable(fit2_Contrast,coef=1,adjust.method="BH",sort="none",n=Inf))
+fit2_table$FC <- sign(fit2_table$logFC) * 10^(abs(fit2_table$logFC))
+
+write.table(fit2_table, "fit2_table_Treatment*Genotype_mouseCP.txt", quote=F, sep="\t", row.names=F)
+
+
+
+

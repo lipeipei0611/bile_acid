@@ -1,0 +1,436 @@
+
+
+Prodromal_infor <- read.delim("Prodromal_infor_control.txt")
+head(Prodromal_infor)
+dim(Prodromal_infor)
+
+summary(Prodromal_infor)
+
+Prodromal_infor <- subset(Prodromal_infor, Prodromal_infor$Prodromal_group != "0_Control")
+
+
+library(stringr)
+Screening_Demographics <- read.csv("Screening___Demographics.csv")
+head(Screening_Demographics)
+
+
+Blood_Chemistry_Hematology <- read.csv("Blood_Chemistry___Hematology.csv")
+head(Blood_Chemistry_Hematology)
+
+bloodtest <- read.table("bloodtest.txt", header=T, sep="\t")
+bloodtest
+for(k in 1:nrow(bloodtest))
+{
+	type <- as.character(bloodtest[k, ]$type)
+	code <- as.character(bloodtest[k, ]$code)
+	
+
+Blood_Chemistry_Hematology_k <- subset(Blood_Chemistry_Hematology, Blood_Chemistry_Hematology$LTSTCODE == code & Blood_Chemistry_Hematology$LVISTYPE == "Screening" & Blood_Chemistry_Hematology$LUSRES != "")
+
+dim(Blood_Chemistry_Hematology_k)
+head(Blood_Chemistry_Hematology_k)
+
+
+dat_k <- matrix(data=NA, ncol=5, nrow=nrow(Prodromal_infor))
+for(i in 1:nrow(Prodromal_infor))
+{
+	patID <- Prodromal_infor[i, 1]
+	Blood_Chemistry_Hematology_k_sub <- subset(Blood_Chemistry_Hematology_k, Blood_Chemistry_Hematology_k$PATNO == patID)
+	Screening_Demographics_sub <- subset(Screening_Demographics, Screening_Demographics$PATNO == patID)
+	
+	if(nrow(Blood_Chemistry_Hematology_k_sub) > 0 & nrow(Screening_Demographics_sub) > 0)
+	{
+		
+		age_at_sc <- as.numeric(str_split_fixed(Screening_Demographics_sub[1,]$ORIG_ENTRY, "\\/", 2)[, 2]) - as.numeric(Screening_Demographics_sub[1,]$BIRTHDT)
+		
+		k_res <- data.frame(str_split_fixed(Blood_Chemistry_Hematology_k_sub[1,]$LUSRES, "\\<", 2))
+	
+		dat_k[i, 1] <- patID
+		
+				
+		if(Screening_Demographics_sub[1,]$GENDER == 0 | Screening_Demographics_sub[1,]$GENDER == 1)
+		{
+			dat_k[i, 2] <- c("Female")
+		}
+		if(Screening_Demographics_sub[1,]$GENDER == 2)
+		{
+			dat_k[i, 2] <- c("Male")
+		}
+
+
+		dat_k[i, 3] <- age_at_sc
+		
+
+		dat_k[i, 4] <- as.character(Prodromal_infor[i, 2])
+
+		
+		if(k_res[1, 1] != "")
+		{
+		dat_k[i, 5] <-  as.numeric(as.character(k_res[1, 1]))
+		}
+		
+		if(k_res[1, 1] == "")
+		{
+		dat_k[i, 5] <-  as.numeric(as.character(k_res[1, 2]))
+		}
+	}
+	
+}
+
+dat_k <- na.omit(data.frame(dat_k))
+colnames(dat_k) <- c("patID", "GENDER", "age_at_sc", "Dignosis", paste(type, "res", sep="_"))
+
+head(dat_k)
+dim(dat_k)
+summary(dat_k$Dignosis)
+
+
+outfile <- paste("dat_", type, ".txt", sep="")
+
+write.table(dat_k, outfile, quote=F, sep="\t", row.names=F)
+
+
+}
+
+
+
+
+
+
+
+
+Prodromal_infor <- read.delim("Prodromal_infor_control.txt")
+head(Prodromal_infor)
+dim(Prodromal_infor)
+
+summary(Prodromal_infor)
+
+Prodromal_infor <- subset(Prodromal_infor, Prodromal_infor$Prodromal_group == "3_PD")
+
+
+library(stringr)
+Screening_Demographics <- read.csv("Screening___Demographics.csv")
+head(Screening_Demographics)
+
+
+Blood_Chemistry_Hematology <- read.csv("Blood_Chemistry___Hematology.csv")
+head(Blood_Chemistry_Hematology)
+
+Prodromal <- read.csv("Prodromal_Diagnostic_Questionnaire.csv")
+head(Prodromal)
+
+
+bloodtest <- read.table("bloodtest.txt", header=T, sep="\t")
+bloodtest
+for(k in 1:nrow(bloodtest))
+{
+	type <- as.character(bloodtest[k, ]$type)
+	code <- as.character(bloodtest[k, ]$code)
+
+
+Blood_Chemistry_Hematology_k <- subset(Blood_Chemistry_Hematology, Blood_Chemistry_Hematology$LTSTCODE == code & Blood_Chemistry_Hematology$LUSRES != "")
+
+dim(Blood_Chemistry_Hematology_k)
+head(Blood_Chemistry_Hematology_k)
+
+
+
+
+dat_k <- matrix(data=NA, ncol=7, nrow=nrow(Prodromal_infor))
+for(i in 1:nrow(Prodromal_infor))
+{
+	patID <- Prodromal_infor[i, 1]
+	Blood_Chemistry_Hematology_k_sub <- subset(Blood_Chemistry_Hematology_k, Blood_Chemistry_Hematology_k$PATNO == patID)
+	Screening_Demographics_sub <- subset(Screening_Demographics, Screening_Demographics$PATNO == patID)
+	Prodromal_sub <- subset(Prodromal, Prodromal$PATNO == patID)
+	if(nrow(Blood_Chemistry_Hematology_k_sub) > 0 & nrow(Screening_Demographics_sub) > 0)
+	{		
+		if(Screening_Demographics_sub[1,]$GENDER == 0 | Screening_Demographics_sub[1,]$GENDER == 1)
+		{
+			dat_k[i, 2] <- c("Female")
+		}
+		if(Screening_Demographics_sub[1,]$GENDER == 2)
+		{
+			dat_k[i, 2] <- c("Male")
+		}
+
+		dat_k[i, 1] <- patID
+		dat_k[i, 3] <- as.character(Prodromal_infor[i, 2])	
+			
+		age_at_test <- as.numeric(str_split_fixed(Blood_Chemistry_Hematology_k_sub$LCOLLDT, "\\/", 2)[, 2]) - as.numeric(Screening_Demographics_sub[1,]$BIRTHDT)
+		
+		EVENT_ID <- Blood_Chemistry_Hematology_k_sub$EVENT_ID
+		
+        tmp_split <- data.frame(str_split_fixed(Blood_Chemistry_Hematology_k_sub$LUSRES, "\\<", 2))
+		tmp_split$X1 <- as.numeric(as.character(tmp_split$X1))
+		tmp_split$X2 <- as.numeric(as.character(tmp_split$X2))
+		tmp_split[is.na(tmp_split)] <- 0
+		k_res <-  tmp_split[, 1] + tmp_split[, 2]
+		
+		
+		
+		
+		Prodromal_sub_PD <- subset(Prodromal_sub, Prodromal_sub$PRIMDIAG == 1)
+		age_at_PD <- min(as.numeric(str_split_fixed(Prodromal_sub_PD$ORIG_ENTRY, "\\/", 2)[, 2]) - as.numeric(Screening_Demographics_sub[1,]$BIRTHDT))
+		k_res_all <- data.frame(EVENT_ID, age_at_test, k_res)
+		k_res_SC <- subset(k_res_all, k_res_all$EVENT_ID == "SC")$k_res
+
+		k_res_afterPD <- subset(k_res_all, k_res_all$age_at_test >= age_at_PD)[1, ]$k_res
+		
+		
+		dat_k[i, 4] <- subset(k_res_all, k_res_all$EVENT_ID == "SC")$age_at_test
+		dat_k[i, 5] <- k_res_SC
+		
+		dat_k[i, 6] <- subset(k_res_all, k_res_all$age_at_test >= age_at_PD)[1, ]$age_at_test
+		dat_k[i, 7] <- k_res_afterPD		
+	}
+}
+
+
+
+dat_k <- na.omit(data.frame(dat_k))
+colnames(dat_k) <- c("patID", "GENDER", "Dignosis", "age_at_test_SC", "k_res_SC", "age_at_test_afterPD", "k_res_afterPD")
+
+
+
+outfile <- paste("dat_pd_", type, ".txt", sep="")
+
+write.table(dat_k, outfile, quote=F, sep="\t", row.names=F)
+
+}
+
+
+
+library("data.table")
+
+
+bloodtest <- read.table("bloodtest.txt", header=T, sep="\t")
+bloodtest
+
+for(k in 1:nrow(bloodtest))
+{
+	type <- as.character(bloodtest[k, ]$type)
+	inFile1 <- paste("dat_", type, ".txt", sep="")
+	inFile2 <- paste("dat_pd_", type, ".txt", sep="")
+	
+	dat_k <- read.table(inFile1, header=T, sep="\t")
+	head(dat_k)
+	
+	dat_pd_k <- read.table(inFile2, header=T, sep="\t")
+	head(dat_pd_k)
+
+	dat_k_12 <- subset(dat_k, dat_k$Dignosis == "1_NoPD" |  dat_k$Dignosis == "2_Lowrisk") 
+	
+	
+	dat_pd_k_3before <- data.frame(dat_pd_k[, 1:2], dat_pd_k[, 4], dat_pd_k[, 3], dat_pd_k[, 5])
+	dat_pd_k_3after <- data.frame(dat_pd_k[, 1:2], dat_pd_k[, 6], dat_pd_k[, 3], dat_pd_k[, 7])
+	
+	
+	colnames(dat_pd_k_3before) <- colnames(dat_k_12)
+	colnames(dat_pd_k_3after) <- colnames(dat_k_12)
+	
+	dat_ave_before_k <- rbind(dat_k_12, dat_pd_k_3before)
+	dat_ave_after_k <- rbind(dat_k_12, dat_pd_k_3after)
+	
+	outFile1 <- paste("dat_SC_", type, ".txt", sep="")
+	outFile2 <- paste("dat_afterPD_", type, ".txt", sep="")	
+	
+	write.table(dat_ave_before_k, outFile1, quote=F, sep="\t", row.names=F)
+	write.table(dat_ave_after_k, outFile2, quote=F, sep="\t", row.names=F)	
+	}
+
+
+
+library("data.table")
+
+dat_SC_Hematocrit <- fread("dat_SC_Hematocrit.txt", header=T, sep="\t")
+head(dat_SC_Hematocrit)
+dat_SC_Hematocrit <- unique(dat_SC_Hematocrit)
+
+dat_SC_RBC <- fread("dat_SC_RBC.txt", header=T, sep="\t")
+head(dat_SC_RBC)
+dat_SC_RBC <- unique(dat_SC_RBC)
+
+dat_SC_Hemoglobin <- fread("dat_SC_Hemoglobin.txt", header=T, sep="\t")
+head(dat_SC_Hemoglobin)
+dat_SC_Hemoglobin <- unique(dat_SC_Hemoglobin)
+
+keycols <- c("patID", "GENDER", "age_at_sc", "Dignosis")
+setkeyv(dat_SC_Hematocrit, keycols)
+setkeyv(dat_SC_RBC, keycols)
+setkeyv(dat_SC_Hemoglobin, keycols)
+
+Result_SC <- merge(dat_SC_Hematocrit, dat_SC_RBC, all=TRUE)
+Result_SC <- merge(Result_SC, dat_SC_Hemoglobin, all=TRUE)
+Result_SC <- data.frame(Result_SC)
+Result_SC <- na.omit(Result_SC)
+dim(Result_SC)
+write.table(Result_SC, "Result_SC.txt", quote=F, row.names=F, sep="\t")
+
+library("limma")
+Result_SC <- fread("Result_SC.txt", header=T, sep="\t")
+keycols <- c("patID", "GENDER", "age_at_sc", "Dignosis")
+setkeyv(Result_SC, keycols)
+
+bloodtest <- read.table("bloodtest.txt", header=T, sep="\t")
+bloodtest
+toptable2vs1_SC <- matrix(data=NA, ncol=5, nrow=5)
+toptable3vs1_SC <- matrix(data=NA, ncol=5, nrow=5)
+toptable3vs2_SC <- matrix(data=NA, ncol=5, nrow=5)
+
+for(k in 1:5)
+{
+	type <- as.character(bloodtest[k, ]$type)
+	inFile <- paste("dat_SC_", type, ".txt", sep="")
+	
+	dat_SC_k <- fread(inFile, header=T, sep="\t")
+	head(dat_SC_k)
+	
+	dat_SC_k <- unique(dat_SC_k)
+	setkeyv(dat_SC_k, keycols)
+	
+	Result <- merge(dat_SC_k, Result_SC, all=TRUE)
+	Result <- na.omit(Result)
+	
+	data <- t(Result[, 5])
+	
+	design <- model.matrix(~ 0 + Dignosis + age_at_sc + GENDER + Hematocrit_res + RBC_res + Hemoglobin_res, data= Result)
+	fit <- lmFit(data, design=design,method="robust")
+	
+	cont.matrix <- makeContrasts(Dignosis2_LowriskvsDignosis1_NoPD = Dignosis2_Lowrisk-Dignosis1_NoPD, Dignosis3_PDvsDignosis1_NoPD = Dignosis3_PD-Dignosis1_NoPD, Dignosis3_PDvsDignosis2_Lowrisk = Dignosis3_PD-Dignosis2_Lowrisk, levels= design)
+	fit_cont <- contrasts.fit(fit, cont.matrix)
+	fit_cont <- eBayes(fit_cont)
+
+	k_toptable2vs1_SC <- toptable(fit_cont,coef=1,adjust.method="BH",sort="none",n=Inf)
+	k_toptable3vs1_SC <- toptable(fit_cont,coef=2,adjust.method="BH",sort="none",n=Inf)
+	k_toptable3vs2_SC <- toptable(fit_cont,coef=3,adjust.method="BH",sort="none",n=Inf)	
+	
+	toptable2vs1_SC[k, ] <- as.matrix(k_toptable2vs1_SC)
+	toptable3vs1_SC[k, ] <- as.matrix(k_toptable3vs1_SC)
+	toptable3vs2_SC[k, ] <- as.matrix(k_toptable3vs2_SC)
+}
+
+toptable2vs1_SC <- data.frame(toptable2vs1_SC)
+colnames(toptable2vs1_SC) <- c("logFC", "t", "P.Value", "adj.P.Val", "B")
+toptable2vs1_SC <- toptable2vs1_SC[, c("logFC", "t", "P.Value", "B")]
+toptable2vs1_SC$fdr <- p.adjust(toptable2vs1_SC$P.Value, method="fdr")
+toptable2vs1_SC$type <- bloodtest[1:5, 1]
+write.table(toptable2vs1_SC, "toptable2vs1_SC.txt", quote=F, sep="\t", row.names=F)
+
+
+toptable3vs1_SC <- data.frame(toptable3vs1_SC)
+colnames(toptable3vs1_SC) <- c("logFC", "t", "P.Value", "adj.P.Val", "B")
+toptable3vs1_SC <- toptable3vs1_SC[, c("logFC", "t", "P.Value", "B")]
+toptable3vs1_SC$fdr <- p.adjust(toptable3vs1_SC$P.Value, method="fdr")
+toptable3vs1_SC$type <- bloodtest[1:5, 1]
+write.table(toptable3vs1_SC, "toptable3vs1_SC.txt", quote=F, sep="\t", row.names=F)
+
+
+
+toptable3vs2_SC <- data.frame(toptable3vs2_SC)
+colnames(toptable3vs2_SC) <- c("logFC", "t", "P.Value", "adj.P.Val", "B")
+toptable3vs2_SC <- toptable3vs2_SC[, c("logFC", "t", "P.Value", "B")]
+toptable3vs2_SC$fdr <- p.adjust(toptable3vs2_SC$P.Value, method="fdr")
+toptable3vs2_SC$type <- bloodtest[1:5, 1]
+write.table(toptable3vs2_SC, "toptable3vs2_SC.txt", quote=F, sep="\t", row.names=F)
+
+
+
+
+
+
+library("data.table")
+
+dat_afterPD_Hematocrit <- fread("dat_afterPD_Hematocrit.txt", header=T, sep="\t")
+head(dat_afterPD_Hematocrit)
+dat_afterPD_Hematocrit <- unique(dat_afterPD_Hematocrit)
+
+dat_afterPD_RBC <- fread("dat_afterPD_RBC.txt", header=T, sep="\t")
+head(dat_afterPD_RBC)
+dat_afterPD_RBC <- unique(dat_afterPD_RBC)
+
+dat_afterPD_Hemoglobin <- fread("dat_afterPD_Hemoglobin.txt", header=T, sep="\t")
+head(dat_afterPD_Hemoglobin)
+dat_afterPD_Hemoglobin <- unique(dat_afterPD_Hemoglobin)
+
+keycols <- c("patID", "GENDER", "age_at_sc", "Dignosis")
+setkeyv(dat_afterPD_Hematocrit, keycols)
+setkeyv(dat_afterPD_RBC, keycols)
+setkeyv(dat_afterPD_Hemoglobin, keycols)
+
+Result_afterPD <- merge(dat_afterPD_Hematocrit, dat_afterPD_RBC, all=TRUE)
+Result_afterPD <- merge(Result_afterPD, dat_afterPD_Hemoglobin, all=TRUE)
+Result_afterPD <- data.frame(Result_afterPD)
+Result_afterPD <- na.omit(Result_afterPD)
+dim(Result_afterPD)
+write.table(Result_afterPD, "Result_afterPD.txt", quote=F, row.names=F, sep="\t")
+
+library("limma")
+Result_afterPD <- fread("Result_afterPD.txt", header=T, sep="\t")
+keycols <- c("patID", "GENDER", "age_at_sc", "Dignosis")
+setkeyv(Result_afterPD, keycols)
+
+bloodtest <- read.table("bloodtest.txt", header=T, sep="\t")
+bloodtest
+toptable2vs1_afterPD <- matrix(data=NA, ncol=5, nrow=5)
+toptable3vs1_afterPD <- matrix(data=NA, ncol=5, nrow=5)
+toptable3vs2_afterPD <- matrix(data=NA, ncol=5, nrow=5)
+
+for(k in 1:5)
+{
+	type <- as.character(bloodtest[k, ]$type)
+	inFile <- paste("dat_afterPD_", type, ".txt", sep="")
+	
+	dat_afterPD_k <- fread(inFile, header=T, sep="\t")
+	head(dat_afterPD_k)
+	
+	dat_afterPD_k <- unique(dat_afterPD_k)
+	setkeyv(dat_afterPD_k, keycols)
+	
+	Result <- merge(dat_afterPD_k, Result_afterPD, all=TRUE)
+	Result <- na.omit(Result)
+	
+	data <- t(Result[, 5])
+	
+	design <- model.matrix(~ 0 + Dignosis + age_at_sc + GENDER + Hematocrit_res + RBC_res + Hemoglobin_res, data= Result)
+	fit <- lmFit(data, design=design,method="robust")
+
+
+	cont.matrix <- makeContrasts(Dignosis2_LowriskvsDignosis1_NoPD = Dignosis2_Lowrisk-Dignosis1_NoPD, Dignosis3_PDvsDignosis1_NoPD = Dignosis3_PD-Dignosis1_NoPD, Dignosis3_PDvsDignosis2_Lowrisk = Dignosis3_PD-Dignosis2_Lowrisk, levels= design)
+	fit_cont <- contrasts.fit(fit, cont.matrix)
+	fit_cont <- eBayes(fit_cont)
+
+	k_toptable2vs1_afterPD <- toptable(fit_cont,coef=1,adjust.method="BH",sort="none",n=Inf)
+	k_toptable3vs1_afterPD <- toptable(fit_cont,coef=2,adjust.method="BH",sort="none",n=Inf)
+	k_toptable3vs2_afterPD <- toptable(fit_cont,coef=3,adjust.method="BH",sort="none",n=Inf)	
+	
+	toptable2vs1_afterPD[k, ] <- as.matrix(k_toptable2vs1_afterPD)
+	toptable3vs1_afterPD[k, ] <- as.matrix(k_toptable3vs1_afterPD)
+	toptable3vs2_afterPD[k, ] <- as.matrix(k_toptable3vs2_afterPD)
+
+}
+
+toptable2vs1_afterPD <- data.frame(toptable2vs1_afterPD)
+colnames(toptable2vs1_afterPD) <- c("logFC", "t", "P.Value", "adj.P.Val", "B")
+toptable2vs1_afterPD <- toptable2vs1_afterPD[, c("logFC", "t", "P.Value", "B")]
+toptable2vs1_afterPD$fdr <- p.adjust(toptable2vs1_afterPD$P.Value, method="fdr")
+toptable2vs1_afterPD$type <- bloodtest[1:5, 1]
+write.table(toptable2vs1_afterPD, "toptable2vs1_afterPD.txt", quote=F, sep="\t", row.names=F)
+
+
+toptable3vs1_afterPD <- data.frame(toptable3vs1_afterPD)
+colnames(toptable3vs1_afterPD) <- c("logFC", "t", "P.Value", "adj.P.Val", "B")
+toptable3vs1_afterPD <- toptable3vs1_afterPD[, c("logFC", "t", "P.Value", "B")]
+toptable3vs1_afterPD$fdr <- p.adjust(toptable3vs1_afterPD$P.Value, method="fdr")
+toptable3vs1_afterPD$type <- bloodtest[1:5, 1]
+write.table(toptable3vs1_afterPD, "toptable3vs1_afterPD.txt", quote=F, sep="\t", row.names=F)
+
+
+
+toptable3vs2_afterPD <- data.frame(toptable3vs2_afterPD)
+colnames(toptable3vs2_afterPD) <- c("logFC", "t", "P.Value", "adj.P.Val", "B")
+toptable3vs2_afterPD <- toptable3vs2_afterPD[, c("logFC", "t", "P.Value", "B")]
+toptable3vs2_afterPD$fdr <- p.adjust(toptable3vs2_afterPD$P.Value, method="fdr")
+toptable3vs2_afterPD$type <- bloodtest[1:5, 1]
+write.table(toptable3vs2_afterPD, "toptable3vs2_afterPD.txt", quote=F, sep="\t", row.names=F)
+

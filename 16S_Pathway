@@ -1,0 +1,296 @@
+### Genotype_analysis
+library(metagenomeSeq)
+
+
+
+SampleInfor <- read.table("SampleInfor.txt", header=T, sep="\t")
+head(SampleInfor)
+rownames(SampleInfor) <- as.character(SampleInfor$SampleID)
+
+
+
+### Load count data
+rawcount <- read.table("feature-table.biom.tsv", header=T, check.names=F)
+head(rawcount)
+
+count.data <- data.frame(rawcount[, 2: ncol(rawcount)], check.names=F)
+
+count.data$OTU <- seq(1,nrow(count.data),by=1)
+count.data$taxonomy <- rawcount$OTUID
+rownames(count.data) <- count.data$OTU
+countdata <- as.matrix(count.data[, !(colnames(count.data) %in% c("count_genotypeTG.wt", "count_genotypewt.wt", "taxonomy", "OTU"))])
+
+#### Now format & load the taxa
+# this is the taxa.map created above...
+taxa.map = count.data[, c('OTU','taxonomy')]
+OTUdata = AnnotatedDataFrame(taxa.map)
+
+
+### Now format & load the phenodata
+
+ord = match(colnames(countdata), rownames(SampleInfor)) # not really needed because already matched
+SampleInfor = SampleInfor[ord, ]
+phenotypeData = AnnotatedDataFrame(SampleInfor)
+
+
+# Now have 3 objects for metagenomeSeq to create an MRexpermiment obj:
+# countdata
+# OTUdata
+# phenotypeData
+obj = newMRexperiment(countdata, phenoData= phenotypeData, featureData=OTUdata)
+
+# Filter the data:
+sample_requirement_cutoff=5
+obj = filterData(obj, present = sample_requirement_cutoff, depth = 1)
+
+
+#
+sampleToKeep <- which(colSums( MRcounts(obj) != 0) >0)
+obj <- obj[, sampleToKeep]
+
+
+
+# Normalize the data:
+p = cumNormStat(obj, pFlag=FALSE)
+obj = cumNorm(obj, p = p)
+
+SampleInfor_model <- SampleInfor[colnames(obj), ]
+SampleInfor_model$Treatment <- factor(SampleInfor_model$Treatment, levels=c("Water", "DSS"))
+SampleInfor_model$Genotype <- factor(SampleInfor_model$Genotype, levels=c("wt.wt", "TG.wt"))
+
+SampleInfor_genotypewt.wt <- subset(SampleInfor_model, SampleInfor_model$Genotype == "wt.wt")
+SampleInfor_genotypeTG.wt <- subset(SampleInfor_model, SampleInfor_model$Genotype == "TG.wt")
+
+count.data$count_genotypeTG.wt <- rowMeans(count.data[, as.character(SampleInfor_genotypeTG.wt$SampleID)], na.rm=T)
+count.data$count_genotypewt.wt <- rowMeans(count.data[, as.character(SampleInfor_genotypewt.wt$SampleID)], na.rm=T)
+
+
+# design
+designMat = model.matrix(~ 1 + Genotype + Treatment  + Gender, data = SampleInfor_model)
+
+# model
+fit = fitZig(obj, designMat)
+
+topTable = MRtable(fit,number=10000)
+# colnames(topTable)
+topTable$OTU=as.numeric(rownames(topTable))
+topTable = data.frame(topTable,taxa.map[rownames(topTable), ], count.data[rownames(topTable), c("count_genotypeTG.wt", "count_genotypewt.wt" )], check.names=F)
+
+topTable$direction <- topTable$count_genotypeTG.wt - topTable$count_genotypewt.wt
+
+topTable <- topTable[order(topTable$adjPvalues), ]
+
+write.table(topTable, "topTable_Genotype.txt", quote=F, sep="\t", row.names=F)
+
+
+
+### Treatment_analysis
+library(metagenomeSeq)
+
+
+### Load count data
+rawcount <- read.table("feature-table.biom.tsv", header=T, check.names=F)
+head(rawcount)
+
+count.data <- data.frame(rawcount[, 2: ncol(rawcount)], check.names=F)
+
+count.data$OTU <- seq(1,nrow(count.data),by=1)
+count.data$taxonomy <- rawcount$OTUID
+rownames(count.data) <- count.data$OTU
+countdata <- as.matrix(count.data[, !(colnames(count.data) %in% c("taxonomy", "OTU"))])
+
+#### Now format & load the taxa
+# this is the taxa.map created above...
+taxa.map = count.data[, c('OTU','taxonomy')]
+OTUdata = AnnotatedDataFrame(taxa.map)
+
+
+### Now format & load the phenodata
+SampleInfor <- read.table("SampleInfor.txt", header=T, sep="\t")
+head(SampleInfor)
+
+rownames(SampleInfor) <- as.character(SampleInfor$SampleID)
+
+ord = match(colnames(countdata), rownames(SampleInfor)) # not really needed because already matched
+SampleInfor = SampleInfor[ord, ]
+phenotypeData = AnnotatedDataFrame(SampleInfor)
+
+
+# Now have 3 objects for metagenomeSeq to create an MRexpermiment obj:
+# countdata
+# OTUdata
+# phenotypeData
+obj = newMRexperiment(countdata, phenoData= phenotypeData, featureData=OTUdata)
+
+# Filter the data:
+sample_requirement_cutoff=5
+obj = filterData(obj, present = sample_requirement_cutoff, depth = 1)
+
+
+#
+sampleToKeep <- which(colSums( MRcounts(obj) != 0) >0)
+obj <- obj[, sampleToKeep]
+
+# Normalize the data:
+p = cumNormStat(obj, pFlag=FALSE)
+obj = cumNorm(obj, p = p)
+
+SampleInfor_model <- SampleInfor[colnames(obj), ]
+
+SampleInfor_model$Treatment <- factor(SampleInfor_model$Treatment, levels=c("Water", "DSS"))
+SampleInfor_model$Genotype <- factor(SampleInfor_model$Genotype, levels=c("wt.wt", "TG.wt"))
+
+
+SampleInfor_TreatmentWater <- subset(SampleInfor_model, SampleInfor_model$Treatment == "Water")
+SampleInfor_TreatmentDSS <- subset(SampleInfor_model, SampleInfor_model$Treatment == "DSS")
+
+count.data$count_TreatmentDSS <- rowMeans(count.data[, as.character(SampleInfor_TreatmentDSS$SampleID)], na.rm=T)
+count.data$count_TreatmentWater <- rowMeans(count.data[, as.character(SampleInfor_TreatmentWater$SampleID)], na.rm=T)
+
+
+
+
+# design
+designMat = model.matrix(~ 1 + Treatment + Genotype + Gender, data = SampleInfor_model)
+
+# model
+fit = fitZig(obj, designMat)
+
+topTable = MRtable(fit,number=10000)
+# colnames(topTable)
+topTable$OTU=as.numeric(rownames(topTable))
+topTable = data.frame(topTable,taxa.map[rownames(topTable), ], count.data[rownames(topTable), c("count_TreatmentDSS", "count_TreatmentWater" )], check.names=F)
+
+topTable$direction <- topTable$count_TreatmentDSS - topTable$count_TreatmentWater
+
+
+topTable <- topTable[order(topTable$adjPvalues), ]
+
+
+
+write.table(topTable, "topTable_Treatment.txt", quote=F, sep="\t", row.names=F)
+
+
+
+
+
+
+
+### TreatmentXGenotype_analysis
+## Differential Abundance - ZIG model
+## https://www.bioconductor.org/packages/devel/bioc/vignettes/metagenomeSeq/inst/doc/metagenomeSeq.pdf
+
+library(metagenomeSeq)
+library(limma)
+
+
+
+### Load count data
+rawcount <- read.table("feature-table.biom.tsv", header=T, check.names=F)
+head(rawcount)
+
+count.data <- data.frame(rawcount[, 2: ncol(rawcount)], check.names=F)
+
+count.data$OTU <- seq(1,nrow(count.data),by=1)
+count.data$taxonomy <- rawcount$OTUID
+rownames(count.data) <- count.data$OTU
+countdata <- as.matrix(count.data[, !(colnames(count.data) %in% c("taxonomy", "OTU"))])
+
+#### Now format & load the taxa
+# this is the taxa.map created above...
+taxa.map = count.data[, c('OTU','taxonomy')]
+OTUdata = AnnotatedDataFrame(taxa.map)
+
+
+### Now format & load the phenodata
+SampleInfor <- read.table("SampleInfor.txt", header=T, sep="\t")
+head(SampleInfor)
+
+rownames(SampleInfor) <- as.character(SampleInfor$SampleID)
+
+ord = match(colnames(countdata), rownames(SampleInfor)) # not really needed because already matched
+SampleInfor = SampleInfor[ord, ]
+phenotypeData = AnnotatedDataFrame(SampleInfor)
+
+
+# Now have 3 objects for metagenomeSeq to create an MRexpermiment obj:
+# countdata
+# OTUdata
+# phenotypeData
+obj = newMRexperiment(countdata, phenoData= phenotypeData, featureData=OTUdata)
+
+# Filter the data:
+sample_requirement_cutoff=5
+obj = filterData(obj, present = sample_requirement_cutoff, depth = 1)
+
+
+#
+sampleToKeep <- which(colSums( MRcounts(obj) != 0) >0)
+obj <- obj[, sampleToKeep]
+
+# Normalize the data:
+p = cumNormStat(obj, pFlag=FALSE)
+obj = cumNorm(obj, p = p)
+
+SampleInfor_model <- SampleInfor[colnames(obj), ]
+SampleInfor_model$Treatment <- factor(SampleInfor_model$Treatment, levels=c("Water", "DSS"))
+SampleInfor_model$Genotype <- factor(SampleInfor_model$Genotype, levels=c("wt.wt", "TG.wt"))
+
+SampleInfor_treatmentDSS_genotypewt.wt <- subset(SampleInfor_model, SampleInfor_model$Treatment == "DSS" & SampleInfor_model$Genotype == "wt.wt")
+SampleInfor_treatmentWater_genotypewt.wt <- subset(SampleInfor_model, SampleInfor_model$Treatment == "Water" & SampleInfor_model$Genotype == "wt.wt")
+SampleInfor_treatmentDSS_genotypeTG.wt <- subset(SampleInfor_model, SampleInfor_model$Treatment == "DSS" & SampleInfor_model$Genotype == "TG.wt")
+SampleInfor_treatmentWater_genotypeTG.wt <- subset(SampleInfor_model, SampleInfor_model$Treatment == "Water" & SampleInfor_model$Genotype == "TG.wt")
+
+
+count.data$count_treatmentDSS_genotypeTG.wt <- rowMeans(count.data[, as.character(SampleInfor_treatmentDSS_genotypeTG.wt$SampleID)], na.rm=T)
+count.data$count_treatmentWater_genotypeTG.wt <- rowMeans(count.data[, as.character(SampleInfor_treatmentWater_genotypeTG.wt$SampleID)], na.rm=T)
+count.data$count_treatmentDSS_genotypewt.wt <- rowMeans(count.data[, as.character(SampleInfor_treatmentDSS_genotypewt.wt$SampleID)], na.rm=T)
+count.data$count_treatmentWater_genotypewt.wt <- rowMeans(count.data[, as.character(SampleInfor_treatmentWater_genotypewt.wt$SampleID)], na.rm=T)
+
+
+
+
+# design
+designMat = model.matrix(~ 1 + Treatment*Genotype + Gender, data = SampleInfor_model)
+
+# model
+fit = fitZig(obj, designMat)
+
+topTable = MRtable(fit,number=10000)
+
+
+### ((genotypeXtreatmentDSS_wt.wt-genotypeXtreatmentWater_wt.wt)-(genotypeXtreatmentDSS_TG.wt-genotypeXtreatmentWater_TG.wt))
+treatmentDSS_genotypewt.wt <- c(1, 1, 0, 1, 1*0, 1)
+treatmentWater_genotypewt.wt <- c(1, 0, 0, 1, 0*0, 1)
+
+treatmentDSS_genotypeTG.wt <- c(1, 1, 1, 1, 1*1, 1)
+treatmentWater_genotypeTG.wt <- c(1, 0, 1, 1, 0*1, 1)
+
+treatmentINwt <- treatmentDSS_genotypewt.wt - treatmentWater_genotypewt.wt
+treatmentINTG <- treatmentDSS_genotypeTG.wt - treatmentWater_genotypeTG.wt
+
+TreatmentXGenotype <- treatmentINTG - treatmentINwt
+
+contrast.matrix <- cbind(treatmentINTG, treatmentINwt, TreatmentXGenotype)
+rownames(contrast.matrix) <- c(colnames(designMat), "scalingFactor")
+
+
+
+fit_contrast = contrasts.fit(fit$eb, contrast.matrix)
+fit_contrast = eBayes(fit_contrast) 
+fit_contrast_topTable <- topTable(fit_contrast, coef=3, adjust.method="BH",sort="none",n=Inf)
+
+
+# colnames(topTable)
+fit_contrast_topTable$OTU=as.numeric(fit$taxa)
+fit_contrast_topTable = data.frame(fit_contrast_topTable, taxa.map[fit$taxa, ], check.names=F)
+
+fit_contrast_topTable <- fit_contrast_topTable[order(fit_contrast_topTable$adj.P.Val), ]
+
+
+fit_contrast_topTable <- data.frame(fit_contrast_topTable, count.data[as.character(fit_contrast_topTable$OTU), c("count_treatmentDSS_genotypeTG.wt",  "count_treatmentWater_genotypeTG.wt", "count_treatmentDSS_genotypewt.wt", "count_treatmentWater_genotypewt.wt")])
+
+
+outFile <- paste("topTable_TreatmentXGenotype.txt", sep="")
+write.table(fit_contrast_topTable, outFile, quote=F, sep="\t", row.names=F)
+

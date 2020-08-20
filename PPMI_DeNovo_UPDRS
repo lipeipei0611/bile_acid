@@ -1,0 +1,246 @@
+library(stringr)
+Screening_Demographics <- read.csv("Screening___Demographics.csv")
+head(Screening_Demographics)
+Screening_Demographics_PD <- subset(Screening_Demographics, Screening_Demographics$CURRENT_APPRDX == 1)
+dim(Screening_Demographics_PD)
+
+PD_Features <- read.csv("PD_Features.csv")
+head(PD_Features)
+
+PD_Patient <- unique(data.frame(Screening_Demographics_PD$PATNO))
+Year_ONSET <- matrix(data=NA, ncol=1, nrow=nrow(PD_Patient))
+for(i in 1:nrow(PD_Patient))
+{
+	tmp_PATNO <- PD_Patient[i, 1]
+	sub_PD_Features <- subset(PD_Features, PD_Features$PATNO == tmp_PATNO)
+	if(nrow(sub_PD_Features) > 0)
+	{
+		Year_ONSET[i, 1] <- as.numeric(str_split_fixed(sub_PD_Features[1, ]$PDDXDT, "\\/", 2)[, 2])
+	}
+	
+}
+Screening_Demographics_PD$Year_ONSET <- data.frame(Year_ONSET)[, 1]
+
+
+
+Blood_Chemistry_Hematology <- read.csv("Blood_Chemistry___Hematology.csv")
+head(Blood_Chemistry_Hematology)
+
+UPDRS3_infor <- read.csv("UPDRS3_infor.csv")
+head(UPDRS3_infor)
+
+
+
+bloodtest <- read.table("bloodtest.txt", header=T, sep="\t")
+bloodtest
+for(k in 1:nrow(bloodtest))
+{
+	type <- as.character(bloodtest[k, ]$type)
+	code <- as.character(bloodtest[k, ]$code)
+	
+	
+	
+	
+	Blood_Chemistry_Hematology_k <- subset(Blood_Chemistry_Hematology, Blood_Chemistry_Hematology$LTSTCODE == code & Blood_Chemistry_Hematology$LUSRES != "")
+dim(Blood_Chemistry_Hematology_k)
+head(Blood_Chemistry_Hematology_k)
+
+
+
+PD_Patient <- unique(data.frame(Screening_Demographics_PD$PATNO))
+
+dat_PAT_k_UPDRS3 <- data.frame(1000, 1000, "Gender", 1000, 1000, 1000, 1000)
+colnames(dat_PAT_k_UPDRS3) <- c("PatientID", "BirthYear", "Gender", "OnsetYear", "test_Year", paste(type, "res", sep="_")
+, "UPDRS3")
+for(i in 1:nrow(PD_Patient))
+{	
+	patID <- PD_Patient[i, 1]
+	
+	Screening_Demographics_PD_sub <- subset(Screening_Demographics_PD, Screening_Demographics_PD$PATNO == patID)
+	temp_BIRTHDT <- as.numeric(Screening_Demographics_PD_sub[1,]$BIRTHDT)
+	temp_GENDER <- c("")
+	if(Screening_Demographics_PD_sub[1,]$GENDER == 0 | Screening_Demographics_PD_sub[1,]$GENDER == 1)
+		{
+			temp_GENDER <- c("Female")
+		}
+		if(Screening_Demographics_PD_sub[1,]$GENDER == 2)
+		{
+			temp_GENDER <- c("Male")
+		}
+	temp_YearOnset <- Screening_Demographics_PD_sub[1,]$Year_ONSET
+
+	
+	Blood_Chemistry_Hematology_k_sub <- subset(Blood_Chemistry_Hematology_k, Blood_Chemistry_Hematology_k$PATNO == patID )
+	UPDRS3_infor_sub <- subset(UPDRS3_infor, UPDRS3_infor$PATNO == patID)
+	
+	if(nrow(Blood_Chemistry_Hematology_k_sub) > 0 & nrow(UPDRS3_infor_sub) >0)
+	{
+
+		Blood_Chemistry_Hematology_k_sub_infor <- data.frame(as.numeric(str_split_fixed(Blood_Chemistry_Hematology_k_sub$LCOLLDT, "\\/", 2)[, 2]),  Blood_Chemistry_Hematology_k_sub$LUSRES)
+		colnames(Blood_Chemistry_Hematology_k_sub_infor) <- c("DAT", "LUSRES")
+		UPDRS3_infor_sub_infor <- data.frame(as.numeric(str_split_fixed(UPDRS3_infor_sub$INFODT, "\\/", 2)[, 2]),  UPDRS3_infor_sub$UPDRS3)
+		colnames(UPDRS3_infor_sub_infor) <- c("DAT", "UPDRS3")
+		
+		DAT_list <- data.frame(unique(c(Blood_Chemistry_Hematology_k_sub_infor$DAT, UPDRS3_infor_sub_infor$DAT)))
+		
+		tmp_PAT_k_UPDRS3 <- matrix(data=NA,ncol=7, nrow=(nrow(DAT_list)))
+		for(j in 1:nrow(DAT_list))
+		{
+			
+			tmp_DAT <- DAT_list[j, 1]
+			sub_Blood_Chemistry_Hematology_k_sub_infor <- subset(Blood_Chemistry_Hematology_k_sub_infor, Blood_Chemistry_Hematology_k_sub_infor$DAT == tmp_DAT)
+			sub_UPDRS3_infor_sub_infor <- subset(UPDRS3_infor_sub_infor, UPDRS3_infor_sub_infor$DAT == tmp_DAT)
+
+			if(nrow(sub_Blood_Chemistry_Hematology_k_sub_infor) > 0 & nrow(sub_UPDRS3_infor_sub_infor) > 0)
+			{
+					
+			tmp_split <- data.frame(str_split_fixed(sub_Blood_Chemistry_Hematology_k_sub_infor$LUSRES, "\\<", 2))
+			tmp_k_res <- matrix(data=NA, ncol=1, nrow=nrow(tmp_split))
+			for(m in 1:nrow(tmp_split))
+			{
+				if(tmp_split[m, 1] != "")
+				{
+					tmp_k_res[m, 1] <-  as.numeric(as.character(tmp_split[m, 1]))
+				}
+		
+				if(tmp_split[m, 1] == "")
+				{
+					tmp_k_res[m, 1] <-  as.numeric(as.character(tmp_split[m, 2]))
+				}
+			}
+			
+			tmp_PAT_k_UPDRS3[j, 1] <- patID
+			tmp_PAT_k_UPDRS3[j, 2] <- temp_BIRTHDT
+			tmp_PAT_k_UPDRS3[j, 3] <- temp_GENDER
+			tmp_PAT_k_UPDRS3[j, 4] <- temp_YearOnset
+			
+			tmp_PAT_k_UPDRS3[j, 5] <- tmp_DAT
+			tmp_PAT_k_UPDRS3[j, 6] <- mean(tmp_k_res)
+			tmp_PAT_k_UPDRS3[j, 7] <- mean(sub_UPDRS3_infor_sub_infor$UPDRS3)
+			}
+			
+		}
+		tmp_PAT_k_UPDRS3 <- data.frame(tmp_PAT_k_UPDRS3)
+		colnames(tmp_PAT_k_UPDRS3) <- c("PatientID", "BirthYear", "Gender", "OnsetYear", "test_Year", paste(type, "res", sep="_"), "UPDRS3")
+		dat_PAT_k_UPDRS3 <- rbind(dat_PAT_k_UPDRS3, tmp_PAT_k_UPDRS3)
+	}
+	
+	
+}
+
+dat_PAT_k_UPDRS3 <- na.omit(dat_PAT_k_UPDRS3[2:nrow(dat_PAT_k_UPDRS3), ])
+head(dat_PAT_k_UPDRS3)
+outfile <- paste("dat_PAT_UPDRS3_", type, ".txt", sep="")
+write.table(dat_PAT_k_UPDRS3, outfile, quote=F, sep="\t", row.names=F)
+	
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+library("data.table")
+library("stringr")
+library("lmerTest")
+library(robustlmm)
+
+dat_PAT_UPDRS3_Hematocrit <- fread("dat_PAT_UPDRS3_Hematocrit.txt", header=T, sep="\t")
+head(dat_PAT_UPDRS3_Hematocrit)
+dat_PAT_UPDRS3_Hematocrit <- unique(dat_PAT_UPDRS3_Hematocrit)
+
+dat_PAT_UPDRS3_RBC <- fread("dat_PAT_UPDRS3_RBC.txt", header=T, sep="\t")
+head(dat_PAT_UPDRS3_RBC)
+dat_PAT_UPDRS3_RBC <- unique(dat_PAT_UPDRS3_RBC)
+
+dat_PAT_UPDRS3_Hemoglobin <- fread("dat_PAT_UPDRS3_Hemoglobin.txt", header=T, sep="\t")
+head(dat_PAT_UPDRS3_Hemoglobin)
+dat_PAT_UPDRS3_Hemoglobin <- unique(dat_PAT_UPDRS3_Hemoglobin)
+
+keycols <- c("PatientID", "BirthYear", "Gender", "OnsetYear", "test_Year", "UPDRS3")
+setkeyv(dat_PAT_UPDRS3_Hematocrit, keycols)
+setkeyv(dat_PAT_UPDRS3_RBC, keycols)
+setkeyv(dat_PAT_UPDRS3_Hemoglobin, keycols)
+
+ResultPD_UPDRS32 <- merge(dat_PAT_UPDRS3_Hematocrit, dat_PAT_UPDRS3_RBC, all=TRUE)
+ResultPD_UPDRS32 <- merge(ResultPD_UPDRS32, dat_PAT_UPDRS3_Hemoglobin, all=TRUE)
+ResultPD_UPDRS32 <- data.frame(ResultPD_UPDRS32)
+ResultPD_UPDRS32 <- na.omit(ResultPD_UPDRS32)
+dim(ResultPD_UPDRS32)
+write.table(ResultPD_UPDRS32, "ResultPD_UPDRS32.txt", quote=F, row.names=F, sep="\t")
+
+library("limma")
+ResultPD_UPDRS32 <- fread("ResultPD_UPDRS32.txt", header=T, sep="\t")
+keycols <- c("PatientID", "BirthYear", "Gender", "OnsetYear", "test_Year", "UPDRS3")
+setkeyv(ResultPD_UPDRS32, keycols)
+
+bloodtest <- read.table("bloodtest.txt", header=T, sep="\t")
+bloodtest
+toptable_PD_lmer_UPDRS3 <- matrix(data=NA, ncol=5, nrow=5)
+
+for(k in 1:5)
+{
+	type <- as.character(bloodtest[k, ]$type)
+	inFile <- paste("dat_PAT_UPDRS3_", type, ".txt", sep="")
+	
+	dat_k <- fread(inFile, header=T, sep="\t")
+	head(dat_k)
+	
+	dat_k <- unique(dat_k)
+	setkeyv(dat_k, keycols)
+	
+	ResultPD_UPDRS3 <- merge(dat_k, ResultPD_UPDRS32, all=TRUE)
+	ResultPD_UPDRS3 <- na.omit(ResultPD_UPDRS3)
+	
+		ResultPD_UPDRS3$Age_ONSET <- ResultPD_UPDRS3$OnsetYear - ResultPD_UPDRS3$BirthYear
+	ResultPD_UPDRS3$Visit_after_ONSET <- ResultPD_UPDRS3$test_Year - ResultPD_UPDRS3$OnsetYear
+	
+	ResultPD_UPDRS3 <- data.frame(ResultPD_UPDRS3)
+	dat <- ResultPD_UPDRS3[, 7]
+
+	model <- lmer(dat ~ UPDRS3 + Visit_after_ONSET + UPDRS3*Visit_after_ONSET + Age_ONSET + Gender + Hematocrit_res + RBC_res + Hemoglobin_res + (1| PatientID), data= ResultPD_UPDRS3)
+	robust.model <- rlmer(dat ~ UPDRS3 + Visit_after_ONSET + UPDRS3*Visit_after_ONSET + Age_ONSET + Gender + Hematocrit_res + RBC_res + Hemoglobin_res + (1| PatientID), data= ResultPD_UPDRS3)
+	coefs <- data.frame(coef(summary(model)))
+	coefs.robust <- coef(summary(robust.model))
+	
+	toptable_PD_lmer_UPDRS3[k, 1] <- coefs[2, 5]
+	toptable_PD_lmer_UPDRS3[k, 2] <- coefs[2, 1]
+	
+	toptable_PD_lmer_UPDRS3[k, 3] <- as.numeric(2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE)[2])
+	toptable_PD_lmer_UPDRS3[k, 4] <- coefs.robust[2, 1]
+	
+
+	
+	
+
+
+}
+
+toptable_PD_lmer_UPDRS3 <- data.frame(toptable_PD_lmer_UPDRS3)
+colnames(toptable_PD_lmer_UPDRS3) <- c("P.Value_lmer", "Estimate_lmer", "P.values_rlmer", "Estimate_rlmer")
+
+fdr_lmer <- p.adjust(toptable_PD_lmer_UPDRS3$P.Value_lmer, method="fdr")
+fdr_rlmer <- p.adjust(toptable_PD_lmer_UPDRS3$P.values_rlmer, method="fdr")
+
+toptable_PD_lmer_UPDRS3 <- data.frame(toptable_PD_lmer_UPDRS3[, 1:2], fdr_lmer, toptable_PD_lmer_UPDRS3[, 3:4], fdr_rlmer)
+colnames(toptable_PD_lmer_UPDRS3) <- c("P.Value_lmer", "Estimate_lmer", "fdr_lmer", "p.values_rlmer", "Estimate_rlmer", "fdr_rlmer")
+
+
+toptable_PD_lmer_UPDRS3$type <- bloodtest[1:5, 1]
+write.table(toptable_PD_lmer_UPDRS3, "toptable_PD_lmer_UPDRS3.txt", quote=F, sep="\t", row.names=F)

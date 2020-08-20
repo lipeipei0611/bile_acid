@@ -1,0 +1,288 @@
+library("vegan")
+library(stringr)
+library("xlsx")
+
+dat <- read.xlsx("Genotype-30.xlsx", sheetName="level-6")
+head(dat)
+
+sampleToKeep <- read.table("sampleToKeep.txt", header=F)
+head(sampleToKeep)
+
+Sample <- read.table("SampleInfor.txt", header=T)
+head(Sample)
+rownames(Sample) <- Sample$SampleID
+dim(Sample)
+Sample <- Sample[as.character(sampleToKeep[, 1]), ]
+dim(Sample)
+
+Sample_DSS_wt <- subset(Sample, Sample$Treatment == "DSS" & Sample$Genotype == "wt.wt")
+Sample_DSS_TG <- subset(Sample, Sample$Treatment == "DSS" & Sample$Genotype == "TG.wt")
+Sample_Water_wt <- subset(Sample, Sample$Treatment == "Water" & Sample$Genotype == "wt.wt")
+Sample_Water_TG <- subset(Sample, Sample$Treatment == "Water" & Sample$Genotype == "TG.wt")
+
+dim(Sample_DSS_wt)
+[1] 10  7
+dim(Sample_DSS_TG)
+[1] 8 7
+dim(Sample_Water_wt)
+[1] 10  7
+dim(Sample_Water_TG)
+[1] 10  7
+
+countdata <- read.csv("level-6.csv")
+head(countdata)
+dim(countdata)
+[1]  41 125
+countdata <- countdata[, 1:(ncol(countdata)-2)]
+
+countdata <- countdata[, c("index", as.character(dat$taxonomy))]
+rownames(countdata) <- countdata$index
+dim(countdata)
+[1] 41 71
+
+countdata_DSS_wt <- countdata[as.character(Sample_DSS_wt$SampleID), ]
+countdata_DSS_TG <- countdata[as.character(Sample_DSS_TG$SampleID), ]
+countdata_Water_wt <- countdata[as.character(Sample_Water_wt$SampleID), ]
+countdata_Water_TG <- countdata[as.character(Sample_Water_TG$SampleID), ]
+countdata_all <- rbind(countdata_DSS_wt, countdata_DSS_TG, countdata_Water_wt, countdata_Water_TG)
+countdata_all_log <- log10(countdata_all[, 2:ncol(countdata_all)]+1)
+
+##alphaDiversity Shannon index
+alphaDiversity_DSS_wt <- diversity(countdata_DSS_wt[, 2:ncol(countdata_DSS_wt)])
+alphaDiversity_DSS_TG <- diversity(countdata_DSS_TG[, 2:ncol(countdata_DSS_TG)])
+alphaDiversity_Water_wt <- diversity(countdata_Water_wt[, 2:ncol(countdata_Water_wt)])
+alphaDiversity_Water_TG <- diversity(countdata_Water_TG[, 2:ncol(countdata_Water_TG)])
+
+
+
+
+
+alphaDiversity_DSS_wt <- data.frame(alphaDiversity_DSS_wt, c("DSS"), c("wt"), c("DSS_WT"))
+colnames(alphaDiversity_DSS_wt) <- c("alphaDiversity", "treatment", "genotype", "type")
+
+alphaDiversity_DSS_TG <- data.frame(alphaDiversity_DSS_TG, c("DSS"), c("TG"), c("DSS_TG"))
+colnames(alphaDiversity_DSS_TG) <- c("alphaDiversity", "treatment", "genotype", "type")
+
+alphaDiversity_Water_wt <- data.frame(alphaDiversity_Water_wt, c("Water"), c("wt"), c("Water_WT"))
+colnames(alphaDiversity_Water_wt) <- c("alphaDiversity", "treatment", "genotype", "type")
+
+alphaDiversity_Water_TG <- data.frame(alphaDiversity_Water_TG, c("Water"), c("TG"), c("Water_TG"))
+colnames(alphaDiversity_Water_TG) <- c("alphaDiversity", "treatment", "genotype", "type")
+
+
+
+alphaDiversity <- rbind(alphaDiversity_DSS_wt, alphaDiversity_DSS_TG, alphaDiversity_Water_wt, alphaDiversity_Water_TG)
+
+
+
+
+
+
+### treatment in wt
+t.test(alphaDiversity_DSS_wt$alphaDiversity, alphaDiversity_Water_wt$alphaDiversity)
+	Welch Two Sample t-test
+
+data:  alphaDiversity_DSS_wt$alphaDiversity and alphaDiversity_Water_wt$alphaDiversity
+t = 0.36726, df = 15.91, p-value = 0.7183
+alternative hypothesis: true difference in means is not equal to 0
+95 percent confidence interval:
+ -0.1083708  0.1537631
+sample estimates:
+mean of x mean of y 
+ 2.919666  2.896970 
+ 
+### treatment in tg 
+t.test(alphaDiversity_DSS_TG$alphaDiversity, alphaDiversity_Water_TG$alphaDiversity)
+	Welch Two Sample t-test
+
+data:  alphaDiversity_DSS_TG$alphaDiversity and alphaDiversity_Water_TG$alphaDiversity
+t = 0.65403, df = 15.883, p-value = 0.5225
+alternative hypothesis: true difference in means is not equal to 0
+95 percent confidence interval:
+ -0.09214722  0.17430224
+sample estimates:
+mean of x mean of y 
+ 2.938940  2.897862 
+ 
+### 
+t.test(alphaDiversity_Water_wt$alphaDiversity, alphaDiversity_Water_TG$alphaDiversity)
+	Welch Two Sample t-test
+
+data:  alphaDiversity_Water_wt$alphaDiversity and alphaDiversity_Water_TG$alphaDiversity
+t = -0.01561, df = 16.902, p-value = 0.9877
+alternative hypothesis: true difference in means is not equal to 0
+95 percent confidence interval:
+ -0.1215586  0.1197738
+sample estimates:
+mean of x mean of y 
+ 2.896970  2.897862 
+
+
+kruskal.test(alphaDiversity ~ treatment, data = alphaDiversity)
+
+	Kruskal-Wallis rank sum test
+
+data:  alphaDiversity by treatment
+Kruskal-Wallis chi-squared = 1.1701, df = 1, p-value = 0.2794
+
+kruskal.test(alphaDiversity ~ genotype, data = alphaDiversity)
+
+	Kruskal-Wallis rank sum test
+
+data:  alphaDiversity by genotype
+Kruskal-Wallis chi-squared = 0.04188, df = 1, p-value = 0.8378
+
+alphaDiversity$type <- factor(alphaDiversity$type, levels=c("Water_WT", "Water_TG", "DSS_WT", "DSS_TG"))
+lab <- c("Water_WT", "Water_A30P", "DSS_WT", "DSS_A30P")
+
+library("ggplot2")
+pdf("boxplot_alpha_Genus.pdf", width = 7, height = 6)
+ggplot(alphaDiversity, aes(x = type, y = alphaDiversity, fill = type)) +
+        geom_boxplot(alpha=0.7) +
+        scale_y_continuous(name = "Alpha diversity") +
+        scale_x_discrete(name = "", labels= lab) +
+        theme(axis.line = element_line(colour = "black"), panel.background = element_blank(), plot.title = element_text(size = 30, family="Helvetica", face = "plain"), 
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+              text = element_text(size = 30, family="Helvetica", face = "plain"),
+              axis.title = element_text(size = 30, colour = "black", family="Helvetica", face = "plain"),
+              axis.text.x=element_text(size = 30, colour = "black", family="Helvetica", face = "plain", angle=30, hjust=1, vjust=1),
+              axis.text.y=element_text(size = 30, colour = "black", family="Helvetica", face = "plain"),
+              axis.title.y = element_text(size = 30, colour = "black", family="Helvetica", face = "plain"),
+              legend.position = "none") +
+        scale_fill_brewer(palette = "Set2")  +
+        labs(fill = "type")
+dev.off()
+
+
+write.table(alphaDiversity, "alphaDiversity.txt", quote=F, sep="\t", row.names=F)
+
+
+##betaDiversity 
+b <- as.matrix(betadiver(countdata_all[, 2:ncol(countdata_all)], "w"))
+b <- as.matrix(betadiver(countdata_all[, 2:ncol(countdata_all)], "w"))
+b[lower.tri(b)] <- NA
+b[b==0] <- NA
+
+betaDiversity_DSS_wt <- data.frame(as.vector(b[1: 10, 1: 10]), c("DSS_WT"))
+colnames(betaDiversity_DSS_wt) <- c("betaDiversity", "type")
+
+betaDiversity_DSS_TG <- data.frame(as.vector(b[11: 18, 11: 18]), c("DSS_TG"))
+colnames(betaDiversity_DSS_TG) <- c("betaDiversity", "type")
+
+betaDiversity_Water_wt <- data.frame(as.vector(b[19: 28, 19: 28]), c("Water_WT"))
+colnames(betaDiversity_Water_wt) <- c("betaDiversity", "type")
+
+betaDiversity_Water_TG <- data.frame(as.vector(b[29: 38, 29: 38]), c("Water_TG"))
+colnames(betaDiversity_Water_TG) <- c("betaDiversity", "type")
+
+
+betaDiversity_DSS_wt <- na.omit(betaDiversity_DSS_wt)
+betaDiversity_DSS_TG <- na.omit(betaDiversity_DSS_TG)
+
+betaDiversity_Water_wt <- na.omit(betaDiversity_Water_wt)
+betaDiversity_Water_TG <- na.omit(betaDiversity_Water_TG)
+
+
+betaDiversity <- rbind(betaDiversity_DSS_wt, betaDiversity_DSS_TG, betaDiversity_Water_wt, betaDiversity_Water_TG)
+
+
+
+t.test(betaDiversity_DSS_wt$betaDiversity, betaDiversity_Water_wt$betaDiversity)
+	Welch Two Sample t-test
+
+data:  betaDiversity_DSS_wt$betaDiversity and betaDiversity_Water_wt$betaDiversity
+t = 0.76721, df = 85.361, p-value = 0.4451
+alternative hypothesis: true difference in means is not equal to 0
+95 percent confidence interval:
+ -0.01442550  0.03255487
+sample estimates:
+mean of x mean of y 
+0.2306200 0.2215553 
+
+
+t.test(betaDiversity_DSS_TG$betaDiversity, betaDiversity_Water_TG$betaDiversity)
+
+	Welch Two Sample t-test
+
+data:  betaDiversity_DSS_TG$betaDiversity and betaDiversity_Water_TG$betaDiversity
+t = -1.6754, df = 69.139, p-value = 0.09837
+alternative hypothesis: true difference in means is not equal to 0
+95 percent confidence interval:
+ -0.044413524  0.003865448
+sample estimates:
+mean of x mean of y 
+0.2222819 0.2425560 
+
+t.test(betaDiversity_Water_wt$betaDiversity, betaDiversity_Water_TG$betaDiversity)
+
+	Welch Two Sample t-test
+
+data:  betaDiversity_Water_wt$betaDiversity and betaDiversity_Water_TG$betaDiversity
+t = -1.6606, df = 81.576, p-value = 0.1006
+alternative hypothesis: true difference in means is not equal to 0
+95 percent confidence interval:
+ -0.046160401  0.004159044
+sample estimates:
+mean of x mean of y 
+0.2215553 0.2425560 
+
+betaDiversity$type <- factor(betaDiversity$type, levels=c("Water_WT", "Water_TG", "DSS_WT", "DSS_TG"))
+lab <- c("Water_WT", "Water_A30P", "DSS_WT", "DSS_A30P")
+
+library("ggplot2")
+pdf("boxplot_beta_Genus.pdf", width = 7, height = 6)
+ggplot(betaDiversity, aes(x = type, y = betaDiversity, fill = type)) +
+        geom_boxplot(alpha=0.7) +
+        scale_y_continuous(name = "Beta diversity") +
+        scale_x_discrete(name = "", labels= lab) +
+        theme(axis.line = element_line(colour = "black"), panel.background = element_blank(), plot.title = element_text(size = 30, family="Helvetica", face = "plain"), 
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+              text = element_text(size = 30, family="Helvetica", face = "plain"),
+              axis.title = element_text(size = 30, colour = "black", family="Helvetica", face = "plain"),
+              axis.text.x=element_text(size = 30, colour = "black", family="Helvetica", face = "plain", angle=30, hjust=1, vjust=1),
+              axis.text.y=element_text(size = 30, colour = "black", family="Helvetica", face = "plain"),
+              axis.title.y = element_text(size = 30, colour = "black", family="Helvetica", face = "plain"),
+              legend.position = "none") +
+        scale_fill_brewer(palette = "Set2") 
+        labs(fill = "type")
+dev.off()
+
+
+nmds = metaMDS(countdata_all_log, distance = "bray")
+
+
+data.scores = as.data.frame(scores(nmds))
+
+#add columns to data frame 
+data.scores$Sample = rownames(alphaDiversity)
+data.scores$treatment = alphaDiversity$treatment
+data.scores$genotype = alphaDiversity$genotype
+data.scores$type = alphaDiversity$type
+
+write.table(data.scores, "data.scores.txt", quote=F, sep="\t", row.names=F)
+ 
+ data.scores <- read.table("data.scores.txt", header=T, sep="\t")
+head(data.scores)
+data.scores$type <- factor(data.scores$type, levels=c("Water_WT", "Water_A30P", "DSS_WT", "DSS_A30P"))
+
+
+
+library(ggpubr)
+library(ggplot2)
+pdf("NMDS_Genus.pdf", width = 9, height = 5)
+ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) + 
+    geom_point(size = 2, aes(colour = type))+ stat_chull(aes(color = type, fill = type), 
+             alpha = 0.1, geom = "polygon") + 
+    theme(axis.line = element_line(colour = "black"), panel.background = element_blank(), plot.title = element_text(size = 30, family="Helvetica", face = "plain"), 
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+              text = element_text(size = 30, family="Helvetica", face = "plain"),
+              axis.title = element_text(size = 30, colour = "black", family="Helvetica", face = "plain"),
+              axis.text.x=element_text(size = 30, colour = "black", family="Helvetica", face = "plain"),
+              axis.text.y=element_text(size = 30, colour = "black", family="Helvetica", face = "plain"),
+              legend.position = "right", legend.title=element_blank(), legend.text = element_text(size=25)) + labs(x = "NMDS1", colour = "type", y = "NMDS2", shape = "Type") 
+ dev.off()
+ 
+

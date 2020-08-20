@@ -1,0 +1,70 @@
+### Illeum
+library("xlsx")
+
+bileacid_Illeum <- read.xlsx("2020_01_14_Illeum_FinalqPCRSummary_updated.xlsx", sheetName="dat_plot")
+head(bileacid_Illeum)
+
+bileacid_Illeum <- subset(bileacid_Illeum, bileacid_Illeum$Gene %in% c("NPC1L1", "ABCG5", "ABCG8", "NR1H2", "NR1H3", "NR1H4", "GPBAR1", "ASBT", "OSTa", "OSTb", "FABP6"))
+
+bileacid_Illeum$Gene <- factor(bileacid_Illeum$Gene, levels=c("NPC1L1", "ABCG5", "ABCG8", "NR1H2", "NR1H3", "NR1H4", "GPBAR1", "ASBT", "OSTa", "OSTb", "FABP6"))
+
+
+
+geneList <- data.frame(unique(bileacid_Illeum$Gene))
+pValue <- matrix(data=NA, ncol=3, nrow=nrow(geneList))
+
+for(i in 1:nrow(geneList))
+{
+	tmp <- as.character(geneList[i, 1])
+	sub <- subset(bileacid_Illeum, bileacid_Illeum$Gene == tmp)
+	res.aov <- aov(ddCT ~ Group, data=sub)
+	FEC_PD <- subset(sub, sub$Group == "PD")$FEC
+	FEC_C <- subset(sub, sub$Group == "C")$FEC
+	
+	pValue[i, 1] <- tmp
+	pValue[i, 2] <- summary(res.aov)[[1]][["Pr(>F)"]][1]
+	pValue[i, 3] <- mean(FEC_PD) - mean(FEC_C)
+
+
+}
+colnames(pValue) <- c("gene", "pvalue", "FEC_PD_C")
+fdr <- p.adjust(pValue[, 2], method="fdr")
+pValue <- data.frame(pValue, fdr)
+pValue <- pValue[, c("gene", "pvalue", "fdr", "FEC_PD_C")]
+
+write.table(pValue, "pValue_Illeum.txt", quote=F, row.names=F, sep="\t")
+
+
+
+### Liver
+library("xlsx")
+
+bileacid_Liver <- read.xlsx("2020_01_14_Liver_FinalqPCRSummary_updated.xlsx", sheetName="dat_plot")
+head(bileacid_Liver)
+bileacid_Liver <- subset(bileacid_Liver, bileacid_Liver$Gene %in% c("NPC1L1", "ABCG5", "ABCG8", "NR1H2", "NR1H3", "NR1H4", "GPBAR1", "CYP7A1", "CYP27A1", "NTCP", "FABP1"))
+
+bileacid_Liver$Gene <- factor(bileacid_Liver$Gene, levels=c("NPC1L1", "ABCG5", "ABCG8", "NR1H2", "NR1H3", "NR1H4", "GPBAR1", "CYP7A1", "CYP27A1", "NTCP", "FABP1"))
+
+
+
+geneList <- data.frame(unique(bileacid_Liver$Gene))
+pValue <- matrix(data=NA, ncol=3, nrow=nrow(geneList))
+for(i in 1:nrow(geneList))
+{
+	tmp <- as.character(geneList[i, 1])
+	sub <- subset(bileacid_Liver, bileacid_Liver$Gene == tmp)
+	res.aov <- aov(ddCt ~ Group, data=sub)
+	FEC_PD <- subset(sub, sub$Group == "PD")$FEC
+	FEC_C <- subset(sub, sub$Group == "C")$FEC
+	
+	pValue[i, 1] <- tmp
+	pValue[i, 2] <- summary(res.aov)[[1]][["Pr(>F)"]][1]
+	pValue[i, 3] <- mean(FEC_PD) - mean(FEC_C)
+
+}
+colnames(pValue) <- c("gene", "pvalue", "FEC_PD_C")
+fdr <- p.adjust(pValue[, 2], method="fdr")
+pValue <- data.frame(pValue, fdr)
+pValue <- pValue[, c("gene", "pvalue", "fdr", "FEC_PD_C")]
+
+write.table(pValue, "pValue_Liver.txt", quote=F, row.names=F, sep="\t")
